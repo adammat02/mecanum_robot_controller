@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Drivers/VL53L1X/core/VL53L1X_api.c
     Drivers/VL53L1X/core/VL53L1X_calibration.c
     Drivers/VL53L1X/platform/vl53l1_platform.c
+    Core/Src/micros.c
 )
 
 # Add include paths
@@ -58,7 +59,10 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     Drivers/CMSIS/DSP/Include
     Drivers/VL53L1X/platform
     Drivers/VL53L1X/core
+    Core/Inc
 )
+
+add_subdirectory(modules)
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE

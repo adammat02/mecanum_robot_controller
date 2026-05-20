@@ -42,6 +42,12 @@ Drivers/
   VL53L1X/platform/         — HAL I2C binding for VL53L1X
   STM32G4xx_HAL_Driver/     — STM32G4 HAL (CubeMX)
 
+modules/
+  comm/                     — UART communication and ASCII command parsing
+  controller/               — High-level robot controller (orchestrates motors, PID, sensors)
+  motors/                   — Motor driver, quadrature encoder, closed-loop RPM PID
+  sensors/                  — Battery voltage (ADC) and VL53L1X ToF distance sensor
+
 mecanum_robot_controller.ioc — CubeMX project file
 CMakeLists.txt               — build entry point (user sources added here)
 ```
@@ -79,6 +85,57 @@ CDC_Transmit_FS(buf, sizeof(buf));
 ```
 
 The function returns `USBD_BUSY` if a previous transfer is still in progress.
+
+## Modules
+
+Custom application code lives in `modules/`. Each module has an `Inc/` directory with public headers and a `Src/` directory with implementations.
+
+### comm
+
+Line-based UART communication layer split into two components:
+
+- **`uart_comm`** — interrupt-driven RX that buffers incoming bytes and signals when a complete line (`\n` / `\r`) is ready. Transmission is blocking via `uart_send_str()`.
+- **`cmd_parser`** — parses ASCII lines into `Command` structs. Supported commands:
+
+| Command | Format | Description |
+|---|---|---|
+| `S` | `S <s0> <s1> <s2> <s3>` | Set individual wheel speeds [RPM] |
+| `F` | `F <s0> <s1> <s2> <s3>` | Full frame: set speeds and request telemetry response |
+| `P` | `P <kp> <ki> <kd>` | Update PID gains at runtime |
+| `E` | `E` | Request encoder positions |
+| `R` | `R` | Reset encoder counters |
+
+### controller
+
+Top-level orchestration module. Owns and initialises all hardware handles defined in `ctrl_config.h` (4 motors, 4 encoders, 4 PID instances, battery, ToF sensor).
+
+| Function | Description |
+|---|---|
+| `controller_init(bool debug)` | Initialise all sub-modules; `debug=true` enables periodic printf telemetry |
+| `controller_poll()` | Non-blocking check for a new UART command; dispatches to the appropriate handler |
+| `controller_update()` | Run one PID update step — call at a fixed rate from the main loop |
+| `controller_adc_callback(hadc)` | Forward ADC conversion-complete interrupt to the battery module |
+
+Static configuration constants (`ctrl_config.h`): `N_MOTORS=4`, `PER_REV=1940`, `MAX_RPM=160`, `KP=3.0 / KI=0.5 / KD=0.2`, EMA `ALPHA=0.5`, motor sign array `[1, -1, 1, -1]`.
+
+### motors
+
+Three sub-modules for closed-loop wheel control:
+
+**`motor_driver`** — sets PWM duty cycle (0–255, mapped to TIM8 CH1–CH4) and direction via a GPIO pin.
+
+**`encoder`** — reads a hardware quadrature timer (TIM1 / TIM3 / TIM4 / TIM5) and accumulates shaft rotations as a `float`. Call `encoder_get_rotations()` to sample; `encoder_reset()` to zero the counter.
+
+**`motor_pid`** — closed-loop RPM controller built on the CMSIS-DSP `arm_pid_f32` implementation. Features:
+- EMA low-pass filter on the measured speed (`alpha` configurable)
+- Feed-forward term (`ff_gain = max_pwm / max_rpm`) for faster transient response
+- Integrator anti-windup: integrator is frozen when PWM is saturated
+
+### sensors
+
+**`battery`** — measures supply voltage via ADC1, triggered by TIM6 at 10 Hz. Call `battery_get_voltage()` to read the last result [V]. The divider ratio is calibrated with `DIV_RATIO`.
+
+**`tof_vl53l1x`** — wraps the ST VL53L1X API for single-zone distance measurement over I2C. After `tof_init()`, call `tof_get_distance()` to read the last measurement [mm]. The sensor can be power-cycled via the XSHUT GPIO using `tof_reset()`.
 
 ## Development
 
