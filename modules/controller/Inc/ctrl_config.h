@@ -34,9 +34,9 @@ static motor_t motors[N_MOTORS] = {
 
 static encoder_t encoders[N_MOTORS] = {
   { .htim = &htim1, .per_rev = PER_REV },
-  { .htim = &htim3, .per_rev = PER_REV },
+  { .htim = &htim5, .per_rev = PER_REV },
   { .htim = &htim4, .per_rev = PER_REV },
-  { .htim = &htim5, .per_rev = PER_REV }
+  { .htim = &htim3, .per_rev = PER_REV }
 };
 
 static motor_pid_t motor_pids[N_MOTORS] = {

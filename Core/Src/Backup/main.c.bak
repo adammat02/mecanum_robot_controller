@@ -28,7 +28,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc_if.h"
+#include <stdio.h>
+#include "arm_math.h"
+#include "micros.h"
+#include "uart_comm.h"
+#include "controller.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,7 +43,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CTRL_PERIOD_US 1000
+#define CMD_PERIOD_US 10000
+#define LED_PERIOD_US 500000
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,7 +56,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint32_t cmd_timer, ctrl_timer, led_timer;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,7 +67,23 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+int _write(int file, char *ptr, int len)
+{
+    uint32_t t = HAL_GetTick();
+    while (CDC_Transmit_FS((uint8_t*)ptr, len) == USBD_BUSY && HAL_GetTick() - t < 10);
+    return len;
+}
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart == &huart1)
+    uart_rx_byte_callback();
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+  controller_adc_callback(hadc);
+}
 /* USER CODE END 0 */
 
 /**
@@ -106,15 +129,35 @@ int main(void)
   MX_TIM6_Init();
   MX_USB_Device_Init();
   /* USER CODE BEGIN 2 */
-
+  micros_tim_init(&htim2);
+  uart_init(&huart1);
+  controller_init(true);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  cmd_timer = micros();
+  ctrl_timer = micros();
+  led_timer = micros();
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    HAL_Delay(500);
+    if (micros() - cmd_timer > CMD_PERIOD_US)
+    {
+      controller_poll();
+      cmd_timer = micros();
+    }
+
+    if (micros() - ctrl_timer > CTRL_PERIOD_US)
+    {
+      controller_update();
+      ctrl_timer = micros();
+    }
+
+    if (micros() - led_timer > LED_PERIOD_US)
+    {
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      led_timer = micros();
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
