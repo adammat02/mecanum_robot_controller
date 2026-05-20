@@ -28,7 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +60,11 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int _write(int file, char *ptr, int len)
+{
+    CDC_Transmit_FS((uint8_t*)ptr, len);
+    return len;
+}
 /* USER CODE END 0 */
 
 /**
@@ -113,6 +117,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (cdc_rx_ready) {
+      printf("RX: %s\n", UserRxBufferFS);
+      cdc_rx_ready = 0;
+    }
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     HAL_Delay(500);
     /* USER CODE END WHILE */
