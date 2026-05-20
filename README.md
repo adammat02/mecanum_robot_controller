@@ -137,6 +137,37 @@ Three sub-modules for closed-loop wheel control:
 
 **`tof_vl53l1x`** — wraps the ST VL53L1X API for single-zone distance measurement over I2C. After `tof_init()`, call `tof_get_distance()` to read the last measurement [mm]. The sensor can be power-cycled via the XSHUT GPIO using `tof_reset()`.
 
+## Main Loop (`Core/Src/main.c`)
+
+### Startup sequence
+
+After HAL and peripheral init, three calls bring the application up:
+
+```c
+micros_tim_init(&htim2);      // bind TIM2 as 1 µs free-running counter
+uart_init(&huart1);           // start interrupt-driven UART RX
+controller_init(true);        // init motors, encoders, PID, sensors; debug=true enables printf telemetry
+```
+
+### Loop timing
+
+The main loop is purely time-based — no RTOS. Three software timers are polled with `micros()`:
+
+| Period | Task |
+|---|---|
+| 1 ms (`CTRL_PERIOD_US`) | `controller_update()` — run one PID step for all 4 wheels |
+| 10 ms (`CMD_PERIOD_US`) | `controller_poll()` — check for a new UART command and dispatch it |
+| 500 ms (`LED_PERIOD_US`) | Toggle the onboard LED (heartbeat) |
+
+### HAL callbacks
+
+| Callback | Forwarded to |
+|---|---|
+| `HAL_UART_RxCpltCallback` | `uart_rx_byte_callback()` — appends received byte to the line buffer |
+| `HAL_ADC_ConvCpltCallback` | `controller_adc_callback()` → `battery_measure_callback()` — updates `vbat` |
+
+`printf` is redirected to USB CDC via `_write()`.
+
 ## Development
 
 The project is generated with **STM32CubeMX**. To modify peripheral configuration, open `mecanum_robot_controller.ioc` in CubeMX and regenerate — user code sections (`USER CODE BEGIN / END`) are preserved.
