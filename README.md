@@ -33,13 +33,17 @@ System clock: **170 MHz** (HSI × PLL, Voltage Scale 1 Boost).
 ## Project Structure
 
 ```
-Core/
-  Src/   — application and HAL source files
-  Inc/   — headers
-USB_Device/App/
-  usbd_cdc_if.c/h — USB CDC interface (RX/TX buffers, callbacks)
-Drivers/ — STM32 HAL / CMSIS drivers
+Core/Src, Core/Inc          — HAL init code and application sources (CubeMX)
+USB_Device/App/             — USB CDC interface (RX/TX buffers, callbacks)
+
+Drivers/
+  CMSIS/DSP/                — PID controller (arm_pid_init_f32, arm_pid_reset_f32)
+  VL53L1X/core/             — VL53L1X ToF sensor API
+  VL53L1X/platform/         — HAL I2C binding for VL53L1X
+  STM32G4xx_HAL_Driver/     — STM32G4 HAL (CubeMX)
+
 mecanum_robot_controller.ioc — CubeMX project file
+CMakeLists.txt               — build entry point (user sources added here)
 ```
 
 ## USB CDC Communication

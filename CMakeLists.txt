@@ -45,11 +45,19 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    Drivers/CMSIS/DSP/Source/ControllerFunctions/arm_pid_init_f32.c
+    Drivers/CMSIS/DSP/Source/ControllerFunctions/arm_pid_reset_f32.c
+    Drivers/VL53L1X/core/VL53L1X_api.c
+    Drivers/VL53L1X/core/VL53L1X_calibration.c
+    Drivers/VL53L1X/platform/vl53l1_platform.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    Drivers/CMSIS/DSP/Include
+    Drivers/VL53L1X/platform
+    Drivers/VL53L1X/core
 )
 
 # Add project symbols (macros)
