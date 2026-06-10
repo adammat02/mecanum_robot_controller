@@ -2,21 +2,20 @@
 #include "ctrl_config.h"
 #include <stdio.h>
 #include <stdbool.h>
-#include "uart_comm.h"
 #include "micros.h"
-#include "cmd_parser.h"
+#include "comm_protocol.h"
 
 static RotationDirection_t dirs[N_MOTORS] =
     {ROTATION_CCW, ROTATION_CCW, ROTATION_CCW, ROTATION_CCW};
 
 static float32_t set_speed[N_MOTORS];
-static char rx_buff[100], out[128];
 static uint32_t last_cmd_us = 0;
 static bool debug_enabled = false;
 
 void controller_init(bool debug)
 {
   debug_enabled = debug;
+  comm_set_debug(debug);
   for (uint8_t i = 0; i < N_MOTORS; i++)
   {
     motor_init(&motors[i]);
@@ -43,29 +42,28 @@ void controller_adc_callback(ADC_HandleTypeDef *hadc)
 
 static void controller_execute(const Command *cmd)
 {
+  Response resp;
   CmdType type = cmd->cmd;
   switch (type)
   {
   case CMD_GET_POS:
   {
-    float poses[N_MOTORS];
+    resp.type = RESP_POSITIONS;
     for (uint8_t i = 0; i < N_MOTORS; i++)
     {
-      poses[i] = encoder_get_rotations(&encoders[i]) * (float)motor_sign[i];
+      resp.positions.poses[i] = encoder_get_rotations(&encoders[i]) * (float)motor_sign[i];
     }
-    sprintf(out, "%c %.3f %.3f %.3f %.3f\r",
-            (char)type, poses[0], poses[1], poses[2], poses[3]);
     break;
   }
   case CMD_SET_SPEED:
   {
     for (uint8_t i = 0; i < N_MOTORS; i++)
     {
-      float dir = cmd->data.speeds[i] * motor_sign[i];
+      float dir = cmd->frame_rx.speeds[i] * motor_sign[i];
       dirs[i] = (dir >= 0) ? ROTATION_CCW : ROTATION_CW;
-      set_speed[i] = fabsf(cmd->data.speeds[i]);
+      set_speed[i] = fabsf(cmd->frame_rx.speeds[i]);
     }
-    strcpy(out, "OK\r");
+    resp.type = RESP_OK;
     break;
   }
   case CMD_SET_PID:
@@ -75,33 +73,29 @@ static void controller_execute(const Command *cmd)
       motor_pid_set_pid(
           &motor_pids[i], cmd->set_pid.kp, cmd->set_pid.ki, cmd->set_pid.kd);
     }
-    strcpy(out, "OK\r");
+    resp.type = RESP_OK;
     break;
   }
   case CMD_FULL_FRAME_RX:
   {
-    float poses[N_MOTORS];
     for (uint8_t i = 0; i < N_MOTORS; i++)
     {
       // set motors speed
-      float dir = cmd->data.speeds[i] * motor_sign[i];
+      float dir = cmd->frame_rx.speeds[i] * motor_sign[i];
       dirs[i] = (dir >= 0) ? ROTATION_CCW : ROTATION_CW;
-      set_speed[i] = fabsf(cmd->data.speeds[i]);
+      set_speed[i] = fabsf(cmd->frame_rx.speeds[i]);
 
       // read rotations
-      poses[i] = encoder_get_rotations(&encoders[i]) * (float)motor_sign[i];
+      resp.full_frame.poses[i] = encoder_get_rotations(&encoders[i]) * (float)motor_sign[i];
     }
     // read battery voltage 
-    float vbat = battery_get_voltage(&bat);
+    resp.full_frame.vbat = battery_get_voltage(&bat);
 
     // read distance from tofs
-    float dist1 = (float)tof_get_distance(&tof1) / 1000.0f;
-    float dist2 = (float)tof_get_distance(&tof2) / 1000.0f;
+    resp.full_frame.dist1 = (float)tof_get_distance(&tof1) / 1000.0f;
+    resp.full_frame.dist2 = (float)tof_get_distance(&tof2) / 1000.0f;
 
-    // sending 
-    char tx_type = (char)CMD_FULL_FRAME_TX;
-    sprintf(out, "%c %.3f %.3f %.3f %.3f %.3f %.3f %.3f\r",
-            tx_type, poses[0], poses[1], poses[2], poses[3], vbat, dist1, dist2);
+    resp.type = RESP_FULL_FRAME;
     break;
   }
   case CMD_RESET:
@@ -110,37 +104,23 @@ static void controller_execute(const Command *cmd)
     {
       encoder_reset(&encoders[i]);
     }
-    strcpy(out, "OK\r");
+    resp.type = RESP_OK;
     break;
   }
   default:
-    strcpy(out, "ERR\r");
+    resp.type = RESP_ERR;
     break;
   }
-  if (debug_enabled)
-    printf("[TX] %s\n", out);
-  uart_send_str(out);
+  comm_send_response(&resp);
 }
 
 void controller_poll(void)
 {
   Command cmd;
-  if (uart_is_line())
+  if (comm_pull_command(&cmd))
   {
-    uart_get_line(rx_buff, sizeof(rx_buff));
-    if (debug_enabled)
-      printf("[RX] %s\n", rx_buff);
-    if (parse_command(rx_buff, &cmd))
-    {
-      last_cmd_us = micros();
-      controller_execute(&cmd);
-    }
-    else
-    {
-      if (debug_enabled)
-        printf("[TX] ERR\n");
-      uart_send_str("ERR\r");
-    }
+    last_cmd_us = micros();
+    controller_execute(&cmd);
   }
 }
 

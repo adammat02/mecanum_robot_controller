@@ -1,5 +1,5 @@
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    comm/Src/cmd_parser.c
+    comm/Src/comm_protocol.c
     comm/Src/uart_comm.c
     controller/Src/controller.c
     motors/Src/encoder.c
