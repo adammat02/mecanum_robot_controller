@@ -25,6 +25,9 @@
 #define TOF_TIMING_BUDGET_MS 100U
 #define TOF_INTER_MEASUREMENT_MS 100U
 
+#define TOF1_ADR 0x32U
+#define TOF2_ADR 0x52U
+
 static motor_t motors[N_MOTORS] = {
   { .htim = &htim8, .channel = TIM_CHANNEL_1, .dir_port = M1_DIR_GPIO_Port, .dir_pin = M1_DIR_Pin, .max_pwm = PWM_ARR },
   { .htim = &htim8, .channel = TIM_CHANNEL_2, .dir_port = M2_DIR_GPIO_Port, .dir_pin = M2_DIR_Pin, .max_pwm = PWM_ARR },
@@ -56,12 +59,20 @@ static battery_t bat = {
   .div_ratio = DIV_RATIO
 };
 
-static tof_t tof = {
+static tof_t tof1 = {
   .dev = { &hi2c1, TOF_ADR },
   .timing_budget_ms = TOF_TIMING_BUDGET_MS,
   .inter_measurement_ms = TOF_INTER_MEASUREMENT_MS,
   .xshut_port = TOF1_XSHUT_GPIO_Port,
   .xshut_pin = TOF1_XSHUT_Pin
+};
+
+static tof_t tof2 = {
+  .dev = { &hi2c1, TOF_ADR },
+  .timing_budget_ms = TOF_TIMING_BUDGET_MS,
+  .inter_measurement_ms = TOF_INTER_MEASUREMENT_MS,
+  .xshut_port = TOF2_XSHUT_GPIO_Port,
+  .xshut_pin = TOF2_XSHUT_Pin
 };
 
 #endif

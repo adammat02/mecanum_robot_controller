@@ -25,6 +25,12 @@ void tof_init(tof_t *tof);
 
 void tof_reset(tof_t *tof);
 
+void tof_shut_down(tof_t *tof);
+
+void tof_start_up(tof_t *tof);
+
+void tof_change_address(tof_t *tof, uint8_t new_address);
+
 /**
  * @brief Return the most recently measured distance in millimetres.
  * @param tof  Pointer to sensor handle.

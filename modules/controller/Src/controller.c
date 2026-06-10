@@ -24,8 +24,13 @@ void controller_init(bool debug)
     motor_pid_init(&motor_pids[i]);
   }
   battery_measure_init(&bat);
-  tof_reset(&tof);
-  tof_init(&tof);
+
+  tof_shut_down(&tof2);
+  tof_reset(&tof1);
+  tof_init(&tof1);
+  tof_change_address(&tof1, TOF1_ADR);
+  tof_start_up(&tof2);
+  tof_init(&tof2);
 }
 
 void controller_adc_callback(ADC_HandleTypeDef *hadc)
@@ -89,13 +94,14 @@ static void controller_execute(const Command *cmd)
     // read battery voltage 
     float vbat = battery_get_voltage(&bat);
 
-    // read distance from tof
-    float distance = (float)tof_get_distance(&tof) / 1000.0f;
+    // read distance from tofs
+    float dist1 = (float)tof_get_distance(&tof1) / 1000.0f;
+    float dist2 = (float)tof_get_distance(&tof2) / 1000.0f;
 
     // sending 
     char tx_type = (char)CMD_FULL_FRAME_TX;
-    sprintf(out, "%c %.3f %.3f %.3f %.3f %.3f %.3f\r",
-            tx_type, poses[0], poses[1], poses[2], poses[3], vbat, distance);
+    sprintf(out, "%c %.3f %.3f %.3f %.3f %.3f %.3f %.3f\r",
+            tx_type, poses[0], poses[1], poses[2], poses[3], vbat, dist1, dist2);
     break;
   }
   case CMD_RESET:
