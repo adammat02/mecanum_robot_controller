@@ -2,6 +2,8 @@
 
 Firmware for a 4-wheel mecanum robot, based on the **STM32G474RET6** (Cortex-M4, 170 MHz, LQFP64).
 
+> **Hardware:** This firmware runs on a custom PCB. The physical board design (schematic + layout) lives in the [mecanum_robot_board](https://github.com/adammat02/mecanum_robot_board) repository.
+
 This is the board-side component of the [mecanum_robot_system](https://github.com/amatusia/mecanum_robot_system) project. It runs directly on the STM32 hardware and communicates with the host over USB CDC (Virtual COM Port).
 
 ## Hardware Overview
